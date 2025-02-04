@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --poker-table-green: #35654d;
+  --poker-table-border: #2c4c3e;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1a1a;
+}
+
+.bg-poker-table {
+  background: radial-gradient(
+    ellipse at center,
+    var(--poker-table-green) 0%,
+    var(--poker-table-border) 100%
+  );
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
+  border: 20px solid #4a3728;
+  border-radius: 200px;
+}
+
+/* Card animations */
+@keyframes dealCard {
+  from {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+
+.player-component {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+}
+
+.player-component.active {
+  transform: translate(-50%, -50%) scale(1.05);
+  z-index: 10;
+}
+
+.player-cards {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: center;
+  perspective: 1000px;
+}
+
+.player-cards > div {
+  animation: dealCard 0.3s ease-out forwards;
+}
+
+/* Chip styles */
+.chip {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.75rem;
+  border: 4px dashed white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.chip-1 { background-color: #ffffff; color: #000000; }
+.chip-5 { background-color: #ff0000; color: #ffffff; }
+.chip-10 { background-color: #0000ff; color: #ffffff; }
+.chip-25 { background-color: #008000; color: #ffffff; }
+.chip-100 { background-color: #000000; color: #ffffff; }
+
+/* Button styles */
+.dealer-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: white;
+  color: black;
+  font-weight: bold;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+/* Slider customization */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #4a5568;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #4299e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #3182ce;
+  transform: scale(1.1);
+}
+
+/* Modal animations */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal {
+  animation: modalFadeIn 0.3s ease-out forwards;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left-color: #3182ce;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toast notifications */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 1rem;
+  background: #2d3748;
+  color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  animation: toastSlideIn 0.3s ease-out forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .bg-poker-table {
+    border-width: 10px;
+  }
+
+  .player-component {
+    transform: scale(0.8);
+  }
+
+  .chip {
+    width: 30px;
+    height: 30px;
+    font-size: 0.6rem;
+  }
+}

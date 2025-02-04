@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="AI Poker - Play Texas Hold'em against GPT-4 powered AI opponents"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <title>AI Poker</title>
+
+    <!-- Preload card assets -->
+    <link
+      rel="preload"
+      as="image"
+      href="%PUBLIC_URL%/images/card-back.png"
+    />
+
+    <!-- Prevent flash of unstyled content -->
+    <style>
+      body {
+        background-color: #1a1a1a;
+        margin: 0;
+        padding: 0;
+      }
+      #root {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #1a1a1a;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+          Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root">
+      <div class="loading-screen">
+        Loading AI Poker...
+      </div>
+    </div>
+  </body>
+</html>

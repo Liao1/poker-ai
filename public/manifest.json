@@ -1,0 +1,39 @@
+{
+  "short_name": "AI Poker",
+  "name": "AI Poker - Play Texas Hold'em with GPT-4",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1a1a1a",
+  "background_color": "#1a1a1a",
+  "orientation": "landscape",
+  "categories": ["games", "entertainment"],
+  "description": "Play Texas Hold'em poker against AI opponents powered by GPT-4. Each AI player has a unique personality and playing style.",
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "type": "image/png",
+      "sizes": "1280x720",
+      "form_factor": "wide"
+    }
+  ],
+  "prefer_related_applications": false
+}
