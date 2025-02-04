@@ -2,6 +2,8 @@
 
 > **Disclaimer**: This project is currently in development and is built for testing purposes only. Features may be incomplete or subject to change. Use at your own discretion.
 
+![AI Poker](./public/aipoker.png)
+
 A Texas Hold'em poker game where you play against AI opponents powered by OpenAI's GPT-4. Each AI player has a unique personality and playing style, making for an engaging and challenging poker experience.
 
 ## Features
