@@ -6,28 +6,50 @@ export const validateAction = (
   player: Player,
   gameState: GameState
 ): ActionValidation => {
-  // Cannot act if player has no chips
-  if (player.chips <= 0) {
+  // Cannot act if player has no chips (except for fold)
+  if (player.chips <= 0 && actionType !== 'fold') {
     return {
       isValid: false,
       error: 'Player has no chips remaining'
     };
   }
 
+  // Cannot act if betting round is complete (except for showdown)
+  if (gameState.bettingRoundComplete && gameState.currentPhase !== 'showdown') {
+    return {
+      isValid: false,
+      error: 'Betting round is complete'
+    };
+  }
+
+  // Cannot act if not active player
+  if (gameState.activePlayer !== player.id) {
+    return {
+      isValid: false,
+      error: 'Not your turn'
+    };
+  }
+
   switch (actionType) {
     case 'fold':
       // Can always fold
-      return { isValid: true };
+      return {
+        isValid: true,
+        error: undefined
+      };
 
     case 'check':
-      // Can only check if there's no betting
+      // Can only check if there's no betting or player has matched current bet
       if (gameState.currentBet > player.currentBet) {
         return {
           isValid: false,
-          error: 'Cannot check when there is an active bet'
+          error: 'Cannot check when there is an active bet - must call or raise'
         };
       }
-      return { isValid: true };
+      return {
+        isValid: true,
+        error: undefined
+      };
 
     case 'call':
       // Can't call if there's nothing to call
@@ -48,21 +70,44 @@ export const validateAction = (
       return { isValid: true };
 
     case 'raise':
+      // No raise after betting round complete
+      if (gameState.bettingRoundComplete) {
+        return {
+          isValid: false,
+          error: 'Cannot raise - betting round is complete'
+        };
+      }
+
       if (!amount) {
         return {
           isValid: false,
           error: 'Must specify raise amount'
         };
       }
-      // Minimum raise is double the current bet
-      const minRaise = gameState.currentBet * 2;
+
+      // Calculate required raise amounts
+      const minRaise = Math.max(
+        gameState.currentBet * 2,
+        gameState.currentBet + gameState.minRaise
+      );
+      
+      // All-in is always allowed
+      if (amount === player.chips + player.currentBet) {
+        return {
+          isValid: true,
+          error: undefined
+        };
+      }
+
+      // Check minimum raise
       if (amount < minRaise) {
         return {
           isValid: false,
           error: `Raise must be at least ${minRaise} chips`
         };
       }
-      // Can't raise more chips than you have
+
+      // Check if player has enough chips
       const raiseAmount = amount - player.currentBet;
       if (raiseAmount > player.chips) {
         return {
@@ -70,7 +115,11 @@ export const validateAction = (
           error: 'Not enough chips to raise'
         };
       }
-      return { isValid: true };
+
+      return {
+        isValid: true,
+        error: undefined
+      };
 
     default:
       return {

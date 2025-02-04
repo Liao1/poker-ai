@@ -11,6 +11,7 @@ interface PlayerComponentProps {
   isDealer: boolean;
   isSmallBlind: boolean;
   isBigBlind: boolean;
+  showCards?: boolean; // Add this prop to control card visibility
 }
 
 export const PlayerComponent: React.FC<PlayerComponentProps> = ({
@@ -21,7 +22,8 @@ export const PlayerComponent: React.FC<PlayerComponentProps> = ({
   currentBet,
   isDealer,
   isSmallBlind,
-  isBigBlind
+  isBigBlind,
+  showCards = false
 }) => {
   // Calculate player position around the table
   const getPlayerPosition = (pos: number, total: number) => {
@@ -134,7 +136,7 @@ export const PlayerComponent: React.FC<PlayerComponentProps> = ({
         <div className="mt-2">
           <CardHand
             cards={player.cards}
-            isHidden={player.isAI}
+            isHidden={player.isAI && !showCards}
             isActive={isActive}
           />
         </div>

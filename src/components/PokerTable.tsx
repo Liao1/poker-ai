@@ -22,6 +22,7 @@ export const PokerTable: React.FC = () => {
   const [showBetSlider, setShowBetSlider] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showContinueButton, setShowContinueButton] = useState(false);
 
   useEffect(() => {
     // Check for OpenAI API key in environment
@@ -32,33 +33,70 @@ export const PokerTable: React.FC = () => {
     initializeGame();
   }, []);
 
+  // Effect to handle AI turns when active player changes
+  useEffect(() => {
+    if (gameState.activePlayer) {
+      const currentPlayer = gameState.players.find(p => p.id === gameState.activePlayer);
+      if (currentPlayer?.isAI && !gameState.aiDecisionInProgress && !gameState.bettingRoundComplete) {
+        // Add a small delay for better UX
+        setTimeout(() => handleAITurn(currentPlayer.id), 1000);
+      }
+    }
+  }, [gameState.activePlayer]);
+
+  const findNextPlayerByPosition = (startPosition: number): Player | null => {
+    let currentPosition = startPosition;
+    let count = 0;
+
+    // Loop through positions until we find an active player or complete a full circle
+    while (count < gameState.players.length) {
+      // Find player at current position
+      const player = gameState.players.find(p => 
+        p.position === currentPosition && 
+        p.cards.length > 0 && 
+        gameState.activePlayersInRound.includes(p.id)
+      );
+
+      if (player) {
+        return player;
+      }
+
+      // Move to next position
+      currentPosition = (currentPosition + 1) % gameState.players.length;
+      count++;
+    }
+
+    return null;
+  };
+
   const initializeGame = () => {
     try {
+      // Create and shuffle deck
       const deck = createDeck();
+      const shuffledDeck = [...deck].sort(() => Math.random() - 0.5);
+      
+      // Pre-determine all hole cards
       const initialCards: Record<string, Card[]> = {};
-      let remainingDeck = [...deck];
-
-      // Deal two cards to each player
-      gameState.players.forEach(player => {
-        const playerCards = remainingDeck.splice(0, 2);
+      let currentDeck = [...shuffledDeck];
+      
+      // Deal two cards to each player in order
+      for (let i = 0; i < gameState.players.length; i++) {
+        const player = gameState.players[i];
+        const playerCards = [currentDeck.pop()!, currentDeck.pop()!];
         initialCards[player.id] = playerCards;
-      });
+      }
 
-      // Set up initial game state
-      dispatch(dealCards({ playerCards: initialCards, deck: remainingDeck }));
+      // Set up initial game state with remaining deck
+      dispatch(dealCards({ playerCards: initialCards, deck: currentDeck }));
 
       // Set first player after big blind to act
-      const startingPlayerIndex = (gameState.bigBlindPosition + 1) % gameState.players.length;
-      dispatch(setActivePlayer(gameState.players[startingPlayerIndex].id));
+      const firstPlayer = findNextPlayerByPosition((gameState.bigBlindPosition + 1) % gameState.players.length);
+      if (firstPlayer) {
+        dispatch(setActivePlayer(firstPlayer.id));
+      }
       dispatch(setPhase('preflop'));
 
       setRoundHistory(['Game started - dealing cards']);
-
-      // If first player is AI, trigger their action
-      const startingPlayer = gameState.players[startingPlayerIndex];
-      if (startingPlayer.isAI) {
-        handleAITurn(startingPlayer.id);
-      }
     } catch (error) {
       console.error('Error initializing game:', error);
       setError('Failed to initialize game. Please try again.');
@@ -70,15 +108,11 @@ export const PokerTable: React.FC = () => {
     if (!player || !player.isAI) return;
 
     try {
+      // Wait for the AI decision to complete
       await dispatch(makeAIDecision(playerId));
-      const nextPlayer = findNextActivePlayer(playerId);
-      if (nextPlayer) {
-        dispatch(setActivePlayer(nextPlayer.id));
-        if (nextPlayer.isAI) {
-          // Add slight delay for better UX
-          setTimeout(() => handleAITurn(nextPlayer.id), 1000);
-        }
-      } else {
+      
+      // Check if betting round is complete after AI action
+      if (gameState.bettingRoundComplete) {
         advancePhase();
       }
     } catch (error) {
@@ -88,18 +122,10 @@ export const PokerTable: React.FC = () => {
   };
 
   const findNextActivePlayer = (currentPlayerId: string): Player | null => {
-    const currentIndex = gameState.players.findIndex(p => p.id === currentPlayerId);
-    let nextIndex = (currentIndex + 1) % gameState.players.length;
-    
-    // Loop through players until we find one that hasn't folded
-    while (nextIndex !== currentIndex) {
-      const nextPlayer = gameState.players[nextIndex];
-      if (nextPlayer.cards.length > 0) {
-        return nextPlayer;
-      }
-      nextIndex = (nextIndex + 1) % gameState.players.length;
-    }
-    return null;
+    const currentPlayer = gameState.players.find(p => p.id === currentPlayerId);
+    if (!currentPlayer) return null;
+
+    return findNextPlayerByPosition((currentPlayer.position + 1) % gameState.players.length);
   };
 
   const handlePlayerAction = async (actionType: PlayerAction, amount?: number) => {
@@ -127,15 +153,10 @@ export const PokerTable: React.FC = () => {
         amount
       }));
 
-      // Find next player
+      // Find and set next player
       const nextPlayer = findNextActivePlayer(currentPlayer.id);
-
       if (nextPlayer) {
         dispatch(setActivePlayer(nextPlayer.id));
-        // If next player is AI, trigger their action
-        if (nextPlayer.isAI) {
-          setTimeout(() => handleAITurn(nextPlayer.id), 1000);
-        }
       } else {
         advancePhase();
       }
@@ -145,39 +166,65 @@ export const PokerTable: React.FC = () => {
     }
   };
 
-  const advancePhase = () => {
+  const advancePhase = async () => {
     try {
+      // Add delay for better UX
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      
       switch (gameState.currentPhase) {
         case 'setup':
           dispatch(setPhase('preflop'));
           break;
+          
         case 'preflop':
+          // Show flop animation
+          setRoundHistory(prev => [...prev, '--- Dealing Flop ---']);
+          await delay(500);
           dispatch(dealCommunityCards(gameState.deck.slice(0, 3)));
           dispatch(setPhase('flop'));
           break;
+          
         case 'flop':
+          // Show turn animation
+          setRoundHistory(prev => [...prev, '--- Dealing Turn ---']);
+          await delay(500);
           dispatch(dealCommunityCards([...gameState.communityCards, gameState.deck[3]]));
           dispatch(setPhase('turn'));
           break;
+          
         case 'turn':
+          // Show river animation
+          setRoundHistory(prev => [...prev, '--- Dealing River ---']);
+          await delay(500);
           dispatch(dealCommunityCards([...gameState.communityCards, gameState.deck[4]]));
           dispatch(setPhase('river'));
           break;
+          
         case 'river':
+          setRoundHistory(prev => [...prev, '--- Showdown ---']);
+          await delay(500);
           dispatch(setPhase('showdown'));
           handleShowdown();
-          break;
+          return; // Don't set next player after showdown
       }
 
-      // Set first active player for the new phase
-      if (gameState.currentPhase !== 'river') {
-        const firstPlayer = findFirstToActInNewPhase();
-        if (firstPlayer) {
-          dispatch(setActivePlayer(firstPlayer.id));
-          if (firstPlayer.isAI) {
-            setTimeout(() => handleAITurn(firstPlayer.id), 1000);
-          }
-        }
+      // Reset betting state for next phase
+      dispatch(playerAction({
+        playerId: 'reset',
+        actionType: 'check',
+        amount: 0
+      }));
+
+      // Find first player to act based on phase
+      // In preflop, first to act is after big blind
+      // In other phases, first to act is after dealer
+      const startPosition = gameState.currentPhase === 'preflop' ? 
+        (gameState.bigBlindPosition + 1) % gameState.players.length : 
+        (gameState.dealerPosition + 1) % gameState.players.length;
+
+      const firstPlayer = findNextPlayerByPosition(startPosition);
+      if (firstPlayer) {
+        dispatch(setActivePlayer(firstPlayer.id));
       }
     } catch (error) {
       console.error('Error advancing game phase:', error);
@@ -185,56 +232,75 @@ export const PokerTable: React.FC = () => {
     }
   };
 
-  const findFirstToActInNewPhase = (): Player | null => {
-    // Start with player after dealer
-    let startIndex = (gameState.dealerPosition + 1) % gameState.players.length;
-    const firstActivePlayers = gameState.players
-      .filter(p => p.cards.length > 0) // Only players who haven't folded
-      .sort((a, b) => {
-        // Sort by position relative to dealer
-        const posA = (a.position - startIndex + gameState.players.length) % gameState.players.length;
-        const posB = (b.position - startIndex + gameState.players.length) % gameState.players.length;
-        return posA - posB;
-      });
-
-    return firstActivePlayers[0] || null;
-  };
-
   const handleShowdown = () => {
-    setShowShowdown(true);
+    // First show all hole cards
+    setRoundHistory(prev => [
+      ...prev,
+      '--- All players show their cards ---'
+    ]);
 
     // Determine the winner
     const activePlayers = gameState.players.filter(p => p.cards.length > 0);
-    let winner = activePlayers[0];
-    for (let i = 1; i < activePlayers.length; i++) {
-      const comparison = compareHands(
-        winner.cards,
-        activePlayers[i].cards,
-        gameState.communityCards
-      );
-      if (comparison < 0) {
-        winner = activePlayers[i];
-      }
+    const playerHands = activePlayers.map(player => ({
+      player,
+      handRank: evaluateHand(player.cards, gameState.communityCards)
+    }));
+
+    // Sort players by hand rank
+    playerHands.sort((a, b) => compareHands(b.handRank, a.handRank));
+
+    // Check for split pot
+    const winners = playerHands.filter(ph => 
+      compareHands(ph.handRank, playerHands[0].handRank) === 0
+    );
+
+    if (winners.length > 1) {
+      // Split pot
+      const splitAmount = Math.floor(gameState.pot / winners.length);
+      const winnerNames = winners.map(w => w.player.name).join(' and ');
+      setRoundHistory(prev => [
+        ...prev,
+        `Split pot: ${winnerNames} each win $${splitAmount} with ${winners[0].handRank.rank}`
+      ]);
+    } else {
+      // Single winner
+      const winner = winners[0];
+      setRoundHistory(prev => [
+        ...prev,
+        `${winner.player.name} wins pot of $${gameState.pot} with ${winner.handRank.rank}`
+      ]);
     }
 
-    // Add winner information to round history
-    setRoundHistory(prev => [
-      ...prev,
-      `${winner.name} wins pot of $${gameState.pot} with ${evaluateHand(winner.cards, gameState.communityCards).rank}`
-    ]);
+    // Show the showdown results after a short delay
+    setTimeout(() => {
+      setShowShowdown(true);
+      setShowContinueButton(true);
+    }, 1000);
   };
 
-  const startNewRound = () => {
-    try {
-      setShowShowdown(false);
-      initializeGame();
-      setShowAnalysis(false);
-      setRoundHistory([]);
-      setError(null);
-    } catch (error) {
-      console.error('Error starting new round:', error);
-      toast.error('Failed to start new round.');
-    }
+  const handleContinue = () => {
+    setShowShowdown(false);
+    setShowContinueButton(false);
+    setShowAnalysis(false);
+    initializeGame();
+    setRoundHistory([]);
+  };
+
+  const isLastToAct = (playerId: string): boolean => {
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Get the next active player after this one
+    const nextPlayer = findNextActivePlayer(playerId);
+    if (!nextPlayer) return true;
+
+    // Check if all active players have matched the current bet
+    const allBetsMatched = gameState.activePlayersInRound.every(id => {
+      const p = gameState.players.find(p => p.id === id);
+      return p && p.currentBet === gameState.currentBet;
+    });
+
+    return allBetsMatched;
   };
 
   const handleRaise = () => {
@@ -286,6 +352,7 @@ export const PokerTable: React.FC = () => {
             isDealer={player.position === gameState.dealerPosition}
             isSmallBlind={player.position === gameState.smallBlindPosition}
             isBigBlind={player.position === gameState.bigBlindPosition}
+            showCards={gameState.currentPhase === 'showdown' && player.cards.length > 0}
           />
         ))}
       </div>
@@ -313,7 +380,9 @@ export const PokerTable: React.FC = () => {
           >
             Fold
           </button>
-          {gameState.currentBet === 0 ? (
+          {(gameState.currentBet === 0 || 
+            (isLastToAct('human') && 
+             gameState.players.find(p => p.id === 'human')?.currentBet === gameState.currentBet)) ? (
             <button
               onClick={() => handlePlayerAction('check')}
               className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
@@ -334,6 +403,18 @@ export const PokerTable: React.FC = () => {
             disabled={gameState.players.find(p => p.id === 'human')?.chips === 0}
           >
             Raise
+          </button>
+        </div>
+      )}
+
+      {/* Continue Button */}
+      {showContinueButton && !showShowdown && (
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <button
+            onClick={handleContinue}
+            className="bg-blue-600 text-white px-8 py-3 rounded-md hover:bg-blue-700 text-lg font-semibold"
+          >
+            Continue to Next Game
           </button>
         </div>
       )}
@@ -370,7 +451,7 @@ export const PokerTable: React.FC = () => {
           roundHistory={roundHistory}
           onClose={() => {
             setShowAnalysis(false);
-            startNewRound();
+            setShowContinueButton(true);
           }}
         />
       )}

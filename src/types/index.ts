@@ -6,7 +6,6 @@ export interface Card {
   suit: '♠' | '♣' | '♥' | '♦';
   rank: string;
   value: number;
-  roundHistory: string[]; // Add roundHistory to track actions in each round
 }
 
 export interface Player {
@@ -18,6 +17,8 @@ export interface Player {
   isAI: boolean;
   personality?: PlayerPersonality;
   position: number; // Position at the table (0 to n-1)
+  hasActed?: boolean; // Track if player has acted in current betting round
+  lastAction?: PlayerAction; // Track player's last action
 }
 
 // Game state types
@@ -38,7 +39,18 @@ export interface GameState {
   bigBlindPosition: number; // Position of big blind
   lastAction: string | null;
   round: number; // Current round number
-  roundHistory: string[]; // Add roundHistory to GameState
+  roundHistory: string[]; // Track round history
+  // New fields for proper betting rules
+  lastRaisePlayerId: string | null; // Track who made the last raise
+  bettingRoundComplete: boolean; // Track if current betting round is complete
+  lastRaise: number; // Amount of the last raise
+  activePlayersInRound: string[]; // Players who haven't folded
+  lastToAct: string | null; // Player who needs to act last in current round
+  potsByPlayer: Record<string, number>; // Track side pots
+  minRaise: number; // Minimum raise amount
+  maxRaise: number | null; // Maximum raise amount (null for no-limit)
+  betsSinceLastRaise: number; // Count of bets since last raise
+  aiDecisionInProgress: boolean; // Track if an AI decision is currently being processed
 }
 
 export interface GameInitOptions {
@@ -53,6 +65,7 @@ export interface HandRank {
   rank: string;
   value: number;
   cards: Card[];
+  kickers: Card[]; // Added kickers for tie-breaking
 }
 
 // Action validation types
@@ -76,4 +89,18 @@ export interface GameAnalysis {
   }>;
   improvements: string[];
   rating: number;
+}
+
+// Betting related types
+export interface BettingRound {
+  phase: GamePhase;
+  currentBet: number;
+  lastRaise: number;
+  actionsRemaining: number; // Number of players still to act
+  isComplete: boolean;
+}
+
+export interface PotInfo {
+  amount: number;
+  eligiblePlayers: string[]; // Player IDs eligible to win this pot
 }

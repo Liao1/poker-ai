@@ -1,5 +1,6 @@
 import { GameState, Player, PlayerAction, PlayerPersonality, GameAnalysis, AIDecision } from '../types';
 import { config } from '../config';
+import { calculatePotOdds } from '../utils/betting';
 
 export class AIPlayerService {
   private apiKey: string;
@@ -28,28 +29,60 @@ export class AIPlayerService {
           messages: [
             {
               role: 'system',
-              content: `You are a professional poker player AI. Analyze the game state and make strategic decisions.
+              content: `You are a professional poker player AI. Analyze the game state and make strategic decisions following Texas Hold'em rules.
 
-Current game state information:
-- Your hole cards: ${player.cards.map(c => `${c.rank}${c.suit}`).join(' ')}
-- Community cards: ${gameState.communityCards.map(c => `${c.rank}${c.suit}`).join(' ')}
-- Current pot: ${gameState.pot}
-- Current bet to call: ${gameState.currentBet - player.currentBet}
-- Your chips: ${player.chips}
-- Current phase: ${gameState.currentPhase}
-- Your position relative to dealer: ${player.position === gameState.dealerPosition ? 'Dealer' : 
-  player.position === gameState.smallBlindPosition ? 'Small Blind' :
-  player.position === gameState.bigBlindPosition ? 'Big Blind' :
-  `${(player.position - gameState.dealerPosition + gameState.players.length) % gameState.players.length} after dealer`}
-- Your personality: ${player.personality}
+Game Information:
+1. Your Hand:
+   - Hole cards: ${player.cards.map(c => `${c.rank}${c.suit}`).join(' ')}
+
+2. Community Cards:
+   - Flop: ${gameState.communityCards.slice(0, 3).map(c => `${c.rank}${c.suit}`).join(' ')}
+   - Turn: ${gameState.communityCards[3] ? `${gameState.communityCards[3].rank}${gameState.communityCards[3].suit}` : 'Not dealt'}
+   - River: ${gameState.communityCards[4] ? `${gameState.communityCards[4].rank}${gameState.communityCards[4].suit}` : 'Not dealt'}
+
+3. Betting Information:
+   - Current pot: ${gameState.pot}
+   - Current bet to call: ${gameState.currentBet - player.currentBet}
+   - Your chips: ${player.chips}
+   - Minimum raise: ${gameState.minRaise}
+
+4. Position and Phase:
+   - Current phase: ${gameState.currentPhase}
+   - Your position: ${player.position === gameState.dealerPosition ? 'Dealer' : 
+     player.position === gameState.smallBlindPosition ? 'Small Blind' :
+     player.position === gameState.bigBlindPosition ? 'Big Blind' :
+     `${(player.position - gameState.dealerPosition + gameState.players.length) % gameState.players.length} after dealer`}
+   - Active players: ${gameState.activePlayersInRound.length}
+
+5. Action History:
+${roundHistory.map((action, i) => `   ${i + 1}. ${action}`).join('\n')}
+
+6. Player Information:
+   - Your personality: ${player.personality}
+   - Last raise by: ${gameState.lastRaisePlayerId || 'none'}
+   - Betting round complete: ${gameState.bettingRoundComplete}
+
+Betting Rules:
+1. You cannot raise if betting round is complete (all active players have matched the current bet)
+2. Minimum raise must be at least the size of the previous raise
+3. You can only check if there's no bet to call
+4. You can always fold
+5. Going all-in is allowed with any amount of chips
+
+Position Strategy:
+- Early position (first to act): Play tight, only strong hands
+- Middle position: Moderately aggressive with good hands
+- Late position (dealer or close): More aggressive, can play more hands
+- Blinds: Defend with reasonable hands when facing raises
 
 Make a decision considering:
-1. Your position and role (dealer, blinds, etc)
-2. Pot odds and implied odds
-3. Your hand strength relative to possible opponent hands
-4. Previous actions in this round
-5. Your assigned personality traits
-              
+1. Position and betting rules
+2. Pot odds (${calculatePotOdds(player, gameState).toFixed(1)}%) and implied odds
+3. Hand strength and potential
+4. Previous actions and player patterns
+5. Stack sizes and betting patterns
+6. Your assigned personality traits
+
 Output must be valid JSON with:
 {
   "actionType": "fold" | "check" | "call" | "raise",
